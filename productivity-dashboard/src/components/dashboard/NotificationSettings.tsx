@@ -10,6 +10,7 @@ export default function NotificationSettings() {
         requestPermission,
         updateSettings,
         sendTestNotification,
+        sendTestTelegram,
     } = useNotifications();
 
     const [isExpanded, setIsExpanded] = useState(false);
@@ -26,15 +27,32 @@ export default function NotificationSettings() {
         }
     };
 
-    const handleTestNotification = () => {
-        sendTestNotification(
+    const handleTestNotification = async () => {
+        const ok = await sendTestNotification(
             '🧪 Тестовое уведомление',
             'Если вы видите это сообщение, уведомления работают!'
         );
+        if (!ok) {
+            alert('Браузерные уведомления не разрешены.');
+        }
+    };
+
+    const handleTestTelegram = async () => {
+        const ok = await sendTestTelegram(
+            '🧪 Тест Telegram',
+            'Если вы видите это сообщение, Telegram-уведомления работают.'
+        );
+        if (!ok) {
+            alert('Проверьте, что Telegram включен и указан chat_id.');
+        }
+    };
+
+    const enableTelegramMode = () => {
+        updateSettings({ enabled: true, telegramEnabled: true });
     };
 
     // Not granted yet - show enable button
-    if (permission !== 'granted' || !settings.enabled) {
+    if (!settings.enabled && permission !== 'granted' && !settings.telegramEnabled) {
         return (
             <div className="card notification-enable-card">
                 <div className="notification-enable">
@@ -50,6 +68,12 @@ export default function NotificationSettings() {
                         onClick={handleEnable}
                     >
                         {permission === 'denied' ? '⚠️ Заблокировано' : '🔔 Включить'}
+                    </button>
+                    <button
+                        className="btn btn--secondary"
+                        onClick={enableTelegramMode}
+                    >
+                        📨 Telegram
                     </button>
                 </div>
             </div>
@@ -72,6 +96,45 @@ export default function NotificationSettings() {
 
             {isExpanded && (
                 <div className="notification-settings">
+                    {/* Channel settings */}
+                    <div className="notification-setting">
+                        <div className="notification-setting__info">
+                            <div className="notification-setting__icon">📨</div>
+                            <div>
+                                <div className="notification-setting__name">Telegram канал</div>
+                                <div className="notification-setting__desc">
+                                    Запасной канал, если браузерные push недоступны
+                                </div>
+                            </div>
+                        </div>
+                        <div className="notification-setting__controls">
+                            <label className="notification-toggle">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.telegramEnabled}
+                                    onChange={(e) => updateSettings({ telegramEnabled: e.target.checked, enabled: true })}
+                                />
+                                <span className="notification-toggle__slider" />
+                            </label>
+                        </div>
+                    </div>
+
+                    {settings.telegramEnabled && (
+                        <div className="form-group">
+                            <label className="form-label">Telegram chat_id</label>
+                            <input
+                                type="text"
+                                className="input"
+                                placeholder="Например: 123456789"
+                                value={settings.telegramChatId}
+                                onChange={(e) => updateSettings({ telegramChatId: e.target.value, enabled: true })}
+                            />
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '6px' }}>
+                                Получите chat_id через бота @userinfobot или @RawDataBot
+                            </p>
+                        </div>
+                    )}
+
                     {/* Habit Reminder */}
                     <div className="notification-setting">
                         <div className="notification-setting__info">
@@ -202,9 +265,14 @@ export default function NotificationSettings() {
                         <button className="btn btn--secondary btn--small" onClick={handleTestNotification}>
                             🧪 Тестовое уведомление
                         </button>
+                        {settings.telegramEnabled && (
+                            <button className="btn btn--secondary btn--small" onClick={handleTestTelegram}>
+                                📨 Тест Telegram
+                            </button>
+                        )}
                         <button
                             className="btn btn--ghost btn--small"
-                            onClick={() => updateSettings({ enabled: false })}
+                            onClick={() => updateSettings({ enabled: false, telegramEnabled: false })}
                             style={{ color: 'var(--priority-high)' }}
                         >
                             Выключить все

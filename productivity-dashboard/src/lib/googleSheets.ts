@@ -26,6 +26,45 @@ export async function getSheetData(sheetName: string): Promise<string[][]> {
     return response.data.values || [];
 }
 
+function toColumnLabel(colNumber: number): string {
+    let label = '';
+    let num = colNumber;
+    while (num > 0) {
+        const rem = (num - 1) % 26;
+        label = String.fromCharCode(65 + rem) + label;
+        num = Math.floor((num - 1) / 26);
+    }
+    return label;
+}
+
+export async function ensureSheetWithHeaders(sheetName: string, headers: string[]): Promise<void> {
+    const sheets = getSheetsClient();
+    const spreadsheet = await sheets.spreadsheets.get({
+        spreadsheetId: SPREADSHEET_ID,
+    });
+
+    const existingSheet = spreadsheet.data.sheets?.find(
+        (s) => s.properties?.title === sheetName
+    );
+
+    if (!existingSheet) {
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: SPREADSHEET_ID,
+            requestBody: {
+                requests: [{ addSheet: { properties: { title: sheetName } } }],
+            },
+        });
+    }
+
+    const endColumn = toColumnLabel(headers.length);
+    await sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${sheetName}!A1:${endColumn}1`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [headers] },
+    });
+}
+
 export async function appendRow(sheetName: string, values: string[]): Promise<void> {
     const sheets = getSheetsClient();
     await sheets.spreadsheets.values.append({
@@ -118,4 +157,28 @@ export const COLUMNS = {
     Tasks: { id: 0, userId: 1, title: 2, description: 3, priority: 4, category: 5, deadline: 6, completed: 7, parentTaskId: 8, scheduledTime: 9, createdAt: 10 },
     Categories: { id: 0, userId: 1, name: 2, color: 3 },
     Goals: { id: 0, userId: 1, title: 2, description: 3, category: 4, status: 5, targetDate: 6, createdAt: 7 },
+    NotificationSettings: {
+        id: 0,
+        userId: 1,
+        enabled: 2,
+        habitReminder: 3,
+        habitReminderTime: 4,
+        taskReminder: 5,
+        taskReminderMinutes: 6,
+        goalReminder: 7,
+        goalReminderTime: 8,
+        dailySummary: 9,
+        dailySummaryTime: 10,
+        telegramEnabled: 11,
+        telegramChatId: 12,
+        timezone: 13,
+        updatedAt: 14,
+    },
+    NotificationEvents: {
+        id: 0,
+        eventKey: 1,
+        userId: 2,
+        channel: 3,
+        sentAt: 4,
+    },
 };

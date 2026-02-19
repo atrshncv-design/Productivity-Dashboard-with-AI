@@ -1,0 +1,25 @@
+name: Notifications Cron
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  run-notifications-cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger notifications cron endpoint
+        env:
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_BASE_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "APP_BASE_URL and CRON_SECRET secrets must be set"
+            exit 1
+          fi
+
+          curl --fail --show-error --silent \
+            -X POST "${APP_BASE_URL}/api/cron/notifications" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json"

@@ -12,6 +12,8 @@ export interface NotificationSettings {
     goalReminderTime: string; // HH:MM
     dailySummary: boolean;
     dailySummaryTime: string; // HH:MM
+    telegramEnabled: boolean;
+    telegramChatId: string;
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
@@ -24,10 +26,17 @@ const DEFAULT_SETTINGS: NotificationSettings = {
     goalReminderTime: '20:00',
     dailySummary: true,
     dailySummaryTime: '21:00',
+    telegramEnabled: false,
+    telegramChatId: '',
 };
 
 const STORAGE_KEY = 'notification_settings';
 const SENT_KEY = 'notifications_sent_today';
+
+function getBrowserTimezone(): string {
+    if (typeof Intl === 'undefined') return 'UTC';
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+}
 
 function getSettings(): NotificationSettings {
     if (typeof window === 'undefined') return DEFAULT_SETTINGS;
@@ -64,14 +73,6 @@ function markSent(key: string) {
     localStorage.setItem(SENT_KEY, JSON.stringify({ date: today, keys: Array.from(sent) }));
 }
 
-function isTimePassed(timeStr: string): boolean {
-    const now = new Date();
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    const target = new Date();
-    target.setHours(hours, minutes, 0, 0);
-    return now >= target;
-}
-
 function isTimeInWindow(timeStr: string, windowMinutes: number = 5): boolean {
     const now = new Date();
     const [hours, minutes] = timeStr.split(':').map(Number);
@@ -81,11 +82,12 @@ function isTimeInWindow(timeStr: string, windowMinutes: number = 5): boolean {
     return diff >= 0 && diff <= windowMinutes * 60 * 1000;
 }
 
-async function sendNotification(title: string, body: string, tag: string, url?: string) {
-    if (Notification.permission !== 'granted') return;
+async function sendBrowserNotification(title: string, body: string, tag: string, url?: string): Promise<boolean> {
+    if (Notification.permission !== 'granted') return false;
 
+    const sentKey = `web:${tag}`;
     const sent = getSentToday();
-    if (sent.has(tag)) return;
+    if (sent.has(sentKey)) return true;
 
     try {
         const registration = await navigator.serviceWorker?.ready;
@@ -104,24 +106,90 @@ async function sendNotification(title: string, body: string, tag: string, url?: 
             // Fallback: direct notification
             new Notification(title, { body, tag, icon: '/icon-192.png' });
         }
-        markSent(tag);
+        markSent(sentKey);
+        return true;
     } catch (error) {
-        console.error('Error sending notification:', error);
+        console.error('Error sending browser notification:', error);
+        return false;
+    }
+}
+
+async function sendTelegramNotification(
+    chatId: string,
+    title: string,
+    body: string,
+    tag: string
+): Promise<boolean> {
+    if (!chatId.trim()) return false;
+
+    const sentKey = `tg:${tag}`;
+    const sent = getSentToday();
+    if (sent.has(sentKey)) return true;
+
+    try {
+        const res = await fetch('/api/notifications/telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chatId, title, body }),
+        });
+
+        if (!res.ok) {
+            console.error('Telegram notification failed:', await res.text());
+            return false;
+        }
+
+        markSent(sentKey);
+        return true;
+    } catch (error) {
+        console.error('Error sending Telegram notification:', error);
+        return false;
     }
 }
 
 export function useNotifications() {
-    const [settings, setSettingsState] = useState<NotificationSettings>(DEFAULT_SETTINGS);
-    const [permission, setPermission] = useState<NotificationPermission>('default');
+    const [settings, setSettingsState] = useState<NotificationSettings>(() => getSettings());
+    const [permission, setPermission] = useState<NotificationPermission>(() => (
+        typeof Notification !== 'undefined' ? Notification.permission : 'default'
+    ));
     const [swRegistered, setSwRegistered] = useState(false);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    // Load settings on mount
-    useEffect(() => {
-        setSettingsState(getSettings());
-        if (typeof Notification !== 'undefined') {
-            setPermission(Notification.permission);
+    const syncSettingsToServer = useCallback(async (nextSettings: NotificationSettings) => {
+        try {
+            await fetch('/api/notification-settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...nextSettings,
+                    timezone: getBrowserTimezone(),
+                }),
+            });
+        } catch (error) {
+            console.error('Failed to sync notification settings to server:', error);
         }
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadServerSettings = async () => {
+            try {
+                const res = await fetch('/api/notification-settings');
+                if (!res.ok) return;
+                const serverSettings = await res.json();
+                if (cancelled) return;
+                const merged = { ...getSettings(), ...serverSettings } as NotificationSettings;
+                setSettingsState(merged);
+                saveSettings(merged);
+            } catch (error) {
+                console.error('Failed to load notification settings from server:', error);
+            }
+        };
+
+        loadServerSettings();
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     // Register service worker
@@ -151,9 +219,10 @@ export function useNotifications() {
             const newSettings = { ...settings, enabled: true };
             setSettingsState(newSettings);
             saveSettings(newSettings);
+            void syncSettingsToServer(newSettings);
 
             // Send immediate welcome notification
-            sendNotification(
+            sendBrowserNotification(
                 '🎉 Уведомления включены!',
                 'Теперь вы будете получать напоминания о задачах, привычках и целях.',
                 'welcome'
@@ -161,24 +230,35 @@ export function useNotifications() {
             return true;
         }
         return false;
-    }, [settings]);
+    }, [settings, syncSettingsToServer]);
 
     const updateSettings = useCallback((updates: Partial<NotificationSettings>) => {
         const newSettings = { ...settings, ...updates };
         setSettingsState(newSettings);
         saveSettings(newSettings);
-    }, [settings]);
+        void syncSettingsToServer(newSettings);
+    }, [settings, syncSettingsToServer]);
 
     // Check and send notifications periodically
     const checkNotifications = useCallback(async () => {
-        if (!settings.enabled || permission !== 'granted') return;
+        if (!settings.enabled) return;
+
+        const canUseBrowser = permission === 'granted';
+        const canUseTelegram = settings.telegramEnabled && settings.telegramChatId.trim().length > 0;
+        if (!canUseBrowser && !canUseTelegram) return;
 
         const now = new Date();
-        const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        const notify = async (title: string, body: string, tag: string) => {
+            await Promise.all([
+                canUseBrowser ? sendBrowserNotification(title, body, tag) : Promise.resolve(),
+                canUseTelegram ? sendTelegramNotification(settings.telegramChatId, title, body, tag) : Promise.resolve(),
+            ]);
+        };
 
         // 1. Habit reminder
         if (settings.habitReminder && isTimeInWindow(settings.habitReminderTime, 2)) {
-            sendNotification(
+            await notify(
                 '🎯 Пора отметить привычки!',
                 'Зайдите в приложение и отметьте выполненные привычки на сегодня.',
                 'habit-reminder'
@@ -209,7 +289,7 @@ export function useNotifications() {
                         const diffMs = now.getTime() - reminderTime.getTime();
 
                         if (diffMs >= 0 && diffMs <= 2 * 60 * 1000) {
-                            sendNotification(
+                            await notify(
                                 `⏰ Задача через ${settings.taskReminderMinutes} мин`,
                                 `${task.title} — запланировано на ${task.scheduledTime}`,
                                 `task-${task.id}`
@@ -219,7 +299,7 @@ export function useNotifications() {
                         // Also notify when it's exactly the scheduled time
                         const exactDiff = now.getTime() - taskTime.getTime();
                         if (exactDiff >= 0 && exactDiff <= 2 * 60 * 1000) {
-                            sendNotification(
+                            await notify(
                                 `🔔 Время задачи!`,
                                 `${task.title} — сейчас ${task.scheduledTime}`,
                                 `task-now-${task.id}`
@@ -234,7 +314,7 @@ export function useNotifications() {
 
         // 3. Goal reminder
         if (settings.goalReminder && isTimeInWindow(settings.goalReminderTime, 2)) {
-            sendNotification(
+            await notify(
                 '🌟 Проверьте свои цели!',
                 'Уделите минуту, чтобы вспомнить о своих целях и мечтах.',
                 'goal-reminder'
@@ -263,7 +343,7 @@ export function useNotifications() {
                     const completedTasks = tasks.filter((t: { completed: boolean }) => t.completed);
                     const pendingTasks = tasks.filter((t: { completed: boolean }) => !t.completed);
 
-                    sendNotification(
+                    await notify(
                         '📊 Итоги дня',
                         `Привычки: ${completedHabits.length}/${activeHabits.length} ✓ | Задачи выполнены: ${completedTasks.length} | Осталось: ${pendingTasks.length}`,
                         'daily-summary'
@@ -299,8 +379,15 @@ export function useNotifications() {
         swRegistered,
         requestPermission,
         updateSettings,
-        sendTestNotification: (title: string, body: string) => {
-            sendNotification(title, body, `test-${Date.now()}`);
+        sendTestNotification: async (title: string, body: string) => {
+            if (permission !== 'granted') return false;
+            await sendBrowserNotification(title, body, `test-web-${Date.now()}`);
+            return true;
+        },
+        sendTestTelegram: async (title: string, body: string) => {
+            if (!settings.telegramEnabled || !settings.telegramChatId.trim()) return false;
+            await sendTelegramNotification(settings.telegramChatId, title, body, `test-tg-${Date.now()}`);
+            return true;
         },
     };
 }
