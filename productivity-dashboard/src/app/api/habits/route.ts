@@ -34,22 +34,34 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = (session.user as { id: string }).id;
-    const body = await request.json();
-    const id = uuidv4();
-    const now = new Date().toISOString();
+    if (!userId) {
+        return NextResponse.json({ error: 'User session is invalid. Please sign in again.' }, { status: 401 });
+    }
 
-    await appendRow('Habits', [
-        id,
-        userId,
-        body.name,
-        body.icon || '⭐',
-        body.frequency || 'daily',
-        'false',
-        'true',
-        now,
-    ]);
+    try {
+        const body = await request.json();
+        if (!body.name || !String(body.name).trim()) {
+            return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+        }
+        const id = uuidv4();
+        const now = new Date().toISOString();
 
-    return NextResponse.json({ id, name: body.name, icon: body.icon || '⭐', frequency: body.frequency || 'daily', isPreset: false, isActive: true, createdAt: now });
+        await appendRow('Habits', [
+            id,
+            String(userId),
+            String(body.name).trim(),
+            String(body.icon || '⭐'),
+            String(body.frequency || 'daily'),
+            'false',
+            'true',
+            now,
+        ]);
+
+        return NextResponse.json({ id, name: String(body.name).trim(), icon: body.icon || '⭐', frequency: body.frequency || 'daily', isPreset: false, isActive: true, createdAt: now });
+    } catch (error) {
+        console.error('POST /api/habits failed:', error);
+        return NextResponse.json({ error: 'Failed to create habit' }, { status: 500 });
+    }
 }
 
 export async function PUT(request: NextRequest) {

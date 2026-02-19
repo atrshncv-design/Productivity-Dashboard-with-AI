@@ -16,8 +16,10 @@ function getSheetsClient(): sheets_v4.Sheets {
 }
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID || '';
+const ensuredSheets = new Set<string>();
 
 export async function getSheetData(sheetName: string): Promise<string[][]> {
+    await ensureKnownSheet(sheetName);
     const sheets = getSheetsClient();
     const response = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
@@ -66,6 +68,7 @@ export async function ensureSheetWithHeaders(sheetName: string, headers: string[
 }
 
 export async function appendRow(sheetName: string, values: string[]): Promise<void> {
+    await ensureKnownSheet(sheetName);
     const sheets = getSheetsClient();
     await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
@@ -82,6 +85,7 @@ export async function updateRow(
     rowIndex: number,
     values: string[]
 ): Promise<void> {
+    await ensureKnownSheet(sheetName);
     const sheets = getSheetsClient();
     await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
@@ -94,6 +98,7 @@ export async function updateRow(
 }
 
 export async function deleteRow(sheetName: string, rowIndex: number): Promise<void> {
+    await ensureKnownSheet(sheetName);
     const sheets = getSheetsClient();
     const spreadsheet = await sheets.spreadsheets.get({
         spreadsheetId: SPREADSHEET_ID,
@@ -128,6 +133,7 @@ export async function findRows(
     columnIndex: number,
     value: string
 ): Promise<{ rowIndex: number; data: string[] }[]> {
+    await ensureKnownSheet(sheetName);
     const data = await getSheetData(sheetName);
     const results: { rowIndex: number; data: string[] }[] = [];
 
@@ -182,3 +188,22 @@ export const COLUMNS = {
         sentAt: 4,
     },
 };
+
+const SHEET_HEADERS: Record<string, string[]> = {
+    Users: ['id', 'email', 'passwordHash', 'name', 'createdAt'],
+    Habits: ['id', 'userId', 'name', 'icon', 'frequency', 'isPreset', 'isActive', 'createdAt'],
+    HabitLogs: ['id', 'habitId', 'userId', 'date', 'completed'],
+    Tasks: ['id', 'userId', 'title', 'description', 'priority', 'category', 'deadline', 'completed', 'parentTaskId', 'scheduledTime', 'createdAt'],
+    Categories: ['id', 'userId', 'name', 'color'],
+    Goals: ['id', 'userId', 'title', 'description', 'category', 'status', 'targetDate', 'createdAt'],
+    NotificationSettings: ['id', 'userId', 'enabled', 'habitReminder', 'habitReminderTime', 'taskReminder', 'taskReminderMinutes', 'goalReminder', 'goalReminderTime', 'dailySummary', 'dailySummaryTime', 'telegramEnabled', 'telegramChatId', 'timezone', 'updatedAt'],
+    NotificationEvents: ['id', 'eventKey', 'userId', 'channel', 'sentAt'],
+};
+
+async function ensureKnownSheet(sheetName: string): Promise<void> {
+    if (ensuredSheets.has(sheetName)) return;
+    const headers = SHEET_HEADERS[sheetName];
+    if (!headers) return;
+    await ensureSheetWithHeaders(sheetName, headers);
+    ensuredSheets.add(sheetName);
+}

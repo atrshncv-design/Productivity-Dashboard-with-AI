@@ -34,31 +34,43 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = (session.user as { id: string }).id;
-    const body = await request.json();
-    const id = uuidv4();
-    const now = new Date().toISOString();
+    if (!userId) {
+        return NextResponse.json({ error: 'User session is invalid. Please sign in again.' }, { status: 401 });
+    }
 
-    await appendRow('Goals', [
-        id,
-        userId,
-        body.title,
-        body.description || '',
-        body.category || 'short-term',
-        body.status || 'active',
-        body.targetDate || '',
-        now,
-    ]);
+    try {
+        const body = await request.json();
+        if (!body.title || !String(body.title).trim()) {
+            return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+        }
+        const id = uuidv4();
+        const now = new Date().toISOString();
 
-    return NextResponse.json({
-        id,
-        userId,
-        title: body.title,
-        description: body.description || '',
-        category: body.category || 'short-term',
-        status: body.status || 'active',
-        targetDate: body.targetDate || '',
-        createdAt: now,
-    });
+        await appendRow('Goals', [
+            id,
+            String(userId),
+            String(body.title).trim(),
+            String(body.description || ''),
+            String(body.category || 'short-term'),
+            String(body.status || 'active'),
+            String(body.targetDate || ''),
+            now,
+        ]);
+
+        return NextResponse.json({
+            id,
+            userId,
+            title: String(body.title).trim(),
+            description: body.description || '',
+            category: body.category || 'short-term',
+            status: body.status || 'active',
+            targetDate: body.targetDate || '',
+            createdAt: now,
+        });
+    } catch (error) {
+        console.error('POST /api/goals failed:', error);
+        return NextResponse.json({ error: 'Failed to create goal' }, { status: 500 });
+    }
 }
 
 export async function PUT(request: NextRequest) {

@@ -37,37 +37,49 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = (session.user as { id: string }).id;
-    const body = await request.json();
-    const id = uuidv4();
-    const now = new Date().toISOString();
+    if (!userId) {
+        return NextResponse.json({ error: 'User session is invalid. Please sign in again.' }, { status: 401 });
+    }
 
-    await appendRow('Tasks', [
-        id,
-        userId,
-        body.title,
-        body.description || '',
-        body.priority || 'medium',
-        body.category || '',
-        body.deadline || '',
-        'false',
-        body.parentTaskId || '',
-        body.scheduledTime || '',
-        now,
-    ]);
+    try {
+        const body = await request.json();
+        if (!body.title || !String(body.title).trim()) {
+            return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+        }
+        const id = uuidv4();
+        const now = new Date().toISOString();
 
-    return NextResponse.json({
-        id,
-        userId,
-        title: body.title,
-        description: body.description || '',
-        priority: body.priority || 'medium',
-        category: body.category || '',
-        deadline: body.deadline || '',
-        completed: false,
-        parentTaskId: body.parentTaskId || null,
-        scheduledTime: body.scheduledTime || '',
-        createdAt: now,
-    });
+        await appendRow('Tasks', [
+            id,
+            String(userId),
+            String(body.title).trim(),
+            String(body.description || ''),
+            String(body.priority || 'medium'),
+            String(body.category || ''),
+            String(body.deadline || ''),
+            'false',
+            String(body.parentTaskId || ''),
+            String(body.scheduledTime || ''),
+            now,
+        ]);
+
+        return NextResponse.json({
+            id,
+            userId,
+            title: String(body.title).trim(),
+            description: body.description || '',
+            priority: body.priority || 'medium',
+            category: body.category || '',
+            deadline: body.deadline || '',
+            completed: false,
+            parentTaskId: body.parentTaskId || null,
+            scheduledTime: body.scheduledTime || '',
+            createdAt: now,
+        });
+    } catch (error) {
+        console.error('POST /api/tasks failed:', error);
+        return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
+    }
 }
 
 export async function PUT(request: NextRequest) {
