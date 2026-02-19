@@ -10,11 +10,90 @@ export interface AIRecommendation {
     type: 'tip' | 'motivation' | 'plan';
 }
 
+function normalizeType(value: string): AIRecommendation['type'] {
+    if (value === 'motivation' || value === 'plan') return value;
+    return 'tip';
+}
+
+function parseRecommendationsFromContent(content: string): AIRecommendation[] {
+    const cleaned = content
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
+
+    const parsedCandidates: unknown[] = [];
+
+    try {
+        parsedCandidates.push(JSON.parse(cleaned));
+    } catch {
+        // Ignore and try extracting JSON fragments.
+    }
+
+    const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+        try {
+            parsedCandidates.push(JSON.parse(arrayMatch[0]));
+        } catch {
+            // Ignore invalid fragment.
+        }
+    }
+
+    const objectMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (objectMatch) {
+        try {
+            parsedCandidates.push(JSON.parse(objectMatch[0]));
+        } catch {
+            // Ignore invalid fragment.
+        }
+    }
+
+    for (const candidate of parsedCandidates) {
+        const sourceArray = Array.isArray(candidate)
+            ? candidate
+            : (candidate &&
+                typeof candidate === 'object' &&
+                Array.isArray((candidate as { recommendations?: unknown[] }).recommendations))
+                ? (candidate as { recommendations: unknown[] }).recommendations
+                : null;
+
+        if (!sourceArray) continue;
+
+        const normalized = sourceArray
+            .filter((item) => item && typeof item === 'object')
+            .map((item) => {
+                const rec = item as { title?: unknown; description?: unknown; type?: unknown };
+                return {
+                    title: String(rec.title || '').trim(),
+                    description: String(rec.description || '').trim(),
+                    type: normalizeType(String(rec.type || 'tip').trim()),
+                } satisfies AIRecommendation;
+            })
+            .filter((rec) => rec.title && rec.description);
+
+        if (normalized.length > 0) {
+            return normalized.slice(0, 4);
+        }
+    }
+
+    throw new Error('Failed to parse recommendations JSON');
+}
+
 export async function getProductivityRecommendations(
     habitsData: { name: string; completionRate: number; streak: number }[],
     tasksData: { title: string; priority: string; completed: boolean; deadline: string }[],
     userName: string
 ): Promise<AIRecommendation[]> {
+    if (!process.env.OPENAI_API_KEY) {
+        console.error('OpenAI error: OPENAI_API_KEY is missing');
+        return [
+            {
+                title: 'Не настроен OpenAI API ключ',
+                description: 'Добавьте OPENAI_API_KEY в env и перезапустите приложение.',
+                type: 'tip',
+            },
+        ];
+    }
+
     const habitsInfo = habitsData.map(h =>
         `- ${h.name}: выполнение ${Math.round(h.completionRate * 100)}%, серия ${h.streak} дней`
     ).join('\n');
@@ -52,8 +131,7 @@ ${tasksInfo || 'Нет данных'}
         });
 
         const content = response.choices[0]?.message?.content || '[]';
-        const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        return JSON.parse(cleanContent);
+        return parseRecommendationsFromContent(content);
     } catch (error) {
         console.error('OpenAI error:', error);
         return [
