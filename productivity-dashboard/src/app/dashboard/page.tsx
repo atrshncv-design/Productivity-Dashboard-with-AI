@@ -9,6 +9,7 @@ import StatsCards from '@/components/dashboard/StatsCards';
 import HabitTracker from '@/components/dashboard/HabitTracker';
 import TaskList from '@/components/dashboard/TaskList';
 import GoalsList from '@/components/dashboard/GoalsList';
+import NotificationSettings from '@/components/dashboard/NotificationSettings';
 import AIRecommendations from '@/components/dashboard/AIRecommendations';
 import ProgressCharts from '@/components/dashboard/ProgressCharts';
 
@@ -39,6 +40,11 @@ export default function DashboardPage() {
         <div className="dashboard">
             <Header />
             <div className="dashboard__content">
+                {/* Notification prompt */}
+                <div style={{ marginBottom: 'var(--space-lg)' }}>
+                    <NotificationSettings />
+                </div>
+
                 {/* Row 1: Time + Stats */}
                 <div className="dashboard__grid" style={{ marginBottom: 'var(--space-lg)' }}>
                     <TimeWidget />
