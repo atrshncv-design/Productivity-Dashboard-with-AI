@@ -115,6 +115,7 @@ export const COLUMNS = {
     Users: { id: 0, email: 1, passwordHash: 2, name: 3, createdAt: 4 },
     Habits: { id: 0, userId: 1, name: 2, icon: 3, frequency: 4, isPreset: 5, isActive: 6, createdAt: 7 },
     HabitLogs: { id: 0, habitId: 1, userId: 2, date: 3, completed: 4 },
-    Tasks: { id: 0, userId: 1, title: 2, description: 3, priority: 4, category: 5, deadline: 6, completed: 7, parentTaskId: 8, createdAt: 9 },
+    Tasks: { id: 0, userId: 1, title: 2, description: 3, priority: 4, category: 5, deadline: 6, completed: 7, parentTaskId: 8, scheduledTime: 9, createdAt: 10 },
     Categories: { id: 0, userId: 1, name: 2, color: 3 },
+    Goals: { id: 0, userId: 1, title: 2, description: 3, category: 4, status: 5, targetDate: 6, createdAt: 7 },
 };

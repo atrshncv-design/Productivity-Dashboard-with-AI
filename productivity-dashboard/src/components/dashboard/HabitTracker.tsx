@@ -10,14 +10,18 @@ export default function HabitTracker() {
     const [showAddModal, setShowAddModal] = useState(false);
     const [newHabitName, setNewHabitName] = useState('');
     const [newHabitIcon, setNewHabitIcon] = useState('⭐');
+    const [selectedDate, setSelectedDate] = useState(new Date());
 
-    const today = new Date().toISOString().split('T')[0];
+    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    const today = formatDate(new Date());
+    const currentDateStr = formatDate(selectedDate);
+    const isToday = currentDateStr === today;
 
     const fetchData = useCallback(async () => {
         try {
             const [habitsRes, logsRes] = await Promise.all([
                 fetch('/api/habits'),
-                fetch(`/api/habit-logs?date=${today}`),
+                fetch(`/api/habit-logs?date=${currentDateStr}`),
             ]);
             const habitsData = await habitsRes.json();
             const logsData = await logsRes.json();
@@ -28,11 +32,20 @@ export default function HabitTracker() {
         } finally {
             setLoading(false);
         }
-    }, [today]);
+    }, [currentDateStr]);
 
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    const changeDate = (offset: number) => {
+        const newDate = new Date(selectedDate);
+        newDate.setDate(newDate.getDate() + offset);
+        // Don't allow future dates
+        if (newDate <= new Date()) {
+            setSelectedDate(newDate);
+        }
+    };
 
     const toggleHabit = async (habitId: string) => {
         const existingLog = logs.find(l => l.habitId === habitId);
@@ -42,14 +55,14 @@ export default function HabitTracker() {
         if (existingLog) {
             setLogs(logs.map(l => l.habitId === habitId ? { ...l, completed: newCompleted } : l));
         } else {
-            setLogs([...logs, { id: 'temp', habitId, userId: '', date: today, completed: true }]);
+            setLogs([...logs, { id: 'temp', habitId, userId: '', date: currentDateStr, completed: true }]);
         }
 
         try {
             await fetch('/api/habit-logs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ habitId, date: today, completed: newCompleted }),
+                body: JSON.stringify({ habitId, date: currentDateStr, completed: newCompleted }),
             });
         } catch (error) {
             console.error('Error toggling habit:', error);
@@ -77,6 +90,7 @@ export default function HabitTracker() {
     };
 
     const removeHabit = async (habitId: string) => {
+        if (!confirm('Удалить эту привычку?')) return;
         try {
             await fetch(`/api/habits?id=${habitId}`, { method: 'DELETE' });
             setHabits(habits.filter(h => h.id !== habitId));
@@ -92,6 +106,14 @@ export default function HabitTracker() {
     const completionPercent = habits.length > 0
         ? Math.round((completedCount / habits.length) * 100)
         : 0;
+
+    const formatDisplayDate = (d: Date) => {
+        if (isToday) return 'Сегодня';
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (formatDate(d) === formatDate(yesterday)) return 'Вчера';
+        return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    };
 
     if (loading) {
         return (
@@ -121,6 +143,21 @@ export default function HabitTracker() {
                 </button>
             </div>
 
+            {/* Date navigation */}
+            <div className="habit-tracker__date-nav">
+                <button className="btn btn--ghost btn--small" onClick={() => changeDate(-1)}>
+                    ←
+                </button>
+                <span className="habit-tracker__date-label">{formatDisplayDate(selectedDate)}</span>
+                <button
+                    className="btn btn--ghost btn--small"
+                    onClick={() => changeDate(1)}
+                    disabled={isToday}
+                >
+                    →
+                </button>
+            </div>
+
             <div style={{ marginBottom: 'var(--space-md)' }}>
                 <div className="progress-bar">
                     <div className="progress-bar__fill" style={{ width: `${completionPercent}%` }} />
@@ -137,7 +174,7 @@ export default function HabitTracker() {
                     habits.map(habit => {
                         const isCompleted = logs.find(l => l.habitId === habit.id)?.completed || false;
                         return (
-                            <div key={habit.id} className="habit-item">
+                            <div key={habit.id} className={`habit-item ${isCompleted ? 'habit-item--completed' : ''}`}>
                                 <div className="habit-item__icon">{habit.icon}</div>
                                 <div className="habit-item__info">
                                     <div className={`habit-item__name ${isCompleted ? 'checkbox__label--checked' : ''}`}>
@@ -151,15 +188,13 @@ export default function HabitTracker() {
                                         checked={isCompleted}
                                         onChange={() => toggleHabit(habit.id)}
                                     />
-                                    {!habit.isPreset && (
-                                        <button
-                                            className="btn btn--ghost btn--small"
-                                            onClick={() => removeHabit(habit.id)}
-                                            title="Удалить"
-                                        >
-                                            ✕
-                                        </button>
-                                    )}
+                                    <button
+                                        className="btn btn--ghost btn--small habit-item__delete"
+                                        onClick={() => removeHabit(habit.id)}
+                                        title="Удалить"
+                                    >
+                                        ✕
+                                    </button>
                                 </div>
                             </div>
                         );

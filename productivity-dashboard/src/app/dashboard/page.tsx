@@ -8,6 +8,7 @@ import TimeWidget from '@/components/dashboard/TimeWidget';
 import StatsCards from '@/components/dashboard/StatsCards';
 import HabitTracker from '@/components/dashboard/HabitTracker';
 import TaskList from '@/components/dashboard/TaskList';
+import GoalsList from '@/components/dashboard/GoalsList';
 import AIRecommendations from '@/components/dashboard/AIRecommendations';
 import ProgressCharts from '@/components/dashboard/ProgressCharts';
 
@@ -54,7 +55,14 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                {/* Row 3: Charts + AI */}
+                {/* Row 3: Goals */}
+                <div className="dashboard__grid" style={{ marginBottom: 'var(--space-lg)' }}>
+                    <div className="dashboard__col-span-3">
+                        <GoalsList />
+                    </div>
+                </div>
+
+                {/* Row 4: Charts + AI */}
                 <div className="dashboard__grid">
                     <div className="dashboard__col-span-2">
                         <ProgressCharts />

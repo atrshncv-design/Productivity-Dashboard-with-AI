@@ -1074,6 +1074,197 @@ input, textarea, select {
   margin-bottom: var(--space-md);
 }
 
+/* ===== HABIT DATE NAV ===== */
+.habit-tracker__date-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) 0;
+}
+
+.habit-tracker__date-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 80px;
+  text-align: center;
+}
+
+.habit-item--completed {
+  background: rgba(74, 222, 128, 0.05);
+  border-radius: var(--radius-md);
+}
+
+.habit-item__delete {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.habit-item:hover .habit-item__delete {
+  opacity: 1;
+}
+
+/* ===== TASK TIME ===== */
+.task-item__time {
+  font-size: 0.75rem;
+  color: var(--accent-cyan);
+  background: rgba(34, 211, 238, 0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+/* ===== GOALS SECTION ===== */
+.goals__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.goals__title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.goals__subtitle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.goals__filters {
+  display: flex;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-lg);
+}
+
+.goals__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-md);
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.goals__list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.goals__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.goals__list::-webkit-scrollbar-thumb {
+  background: var(--border-color-hover);
+  border-radius: 2px;
+}
+
+.goal-card {
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card-hover);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.goal-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-purple-pink);
+}
+
+.goal-card:hover {
+  border-color: var(--border-color-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.goal-card--completed {
+  opacity: 0.7;
+}
+
+.goal-card--completed::before {
+  background: var(--gradient-green-blue);
+}
+
+.goal-card--paused {
+  opacity: 0.8;
+}
+
+.goal-card--paused::before {
+  background: var(--border-color-hover);
+}
+
+.goal-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+
+.goal-card__category-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+}
+
+.goal-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.goal-card__status-select {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-family: var(--font-family);
+}
+
+.goal-card__status-select:focus {
+  border-color: var(--accent-blue);
+  outline: none;
+}
+
+.goal-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+  line-height: 1.4;
+}
+
+.goal-card__title--completed {
+  text-decoration: line-through;
+  color: var(--text-tertiary);
+}
+
+.goal-card__description {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--space-sm);
+}
+
+.goal-card__date {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-top: var(--space-sm);
+}
+
 /* ===== USER MENU ===== */
 .user-menu {
   position: relative;
@@ -1150,6 +1341,9 @@ input, textarea, select {
   .stats-grid {
     grid-template-columns: repeat(3, 1fr);
   }
+  .goals__list {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  }
 }
 
 @media (max-width: 768px) {
@@ -1181,6 +1375,12 @@ input, textarea, select {
   .streak-display {
     flex-direction: column;
   }
+  .goals__list {
+    grid-template-columns: 1fr;
+  }
+  .goals__filters {
+    flex-wrap: wrap;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1190,4 +1390,8 @@ input, textarea, select {
   .task-item__actions {
     opacity: 1;
   }
+  .habit-item__delete {
+    opacity: 1;
+  }
 }
+

@@ -21,6 +21,7 @@ export default function TaskList() {
         priority: 'medium' as Priority,
         category: '',
         deadline: '',
+        scheduledTime: '',
         parentTaskId: '',
     });
 
@@ -56,7 +57,7 @@ export default function TaskList() {
             });
             const task = await res.json();
             setTasks([...tasks, task]);
-            setNewTask({ title: '', description: '', priority: 'medium', category: '', deadline: '', parentTaskId: '' });
+            setNewTask({ title: '', description: '', priority: 'medium', category: '', deadline: '', scheduledTime: '', parentTaskId: '' });
             setShowAddModal(false);
         } catch (error) {
             console.error('Error adding task:', error);
@@ -97,10 +98,16 @@ export default function TaskList() {
         filter === 'all' ? true : t.priority === filter
     );
 
-    // Sort: incomplete first, then by priority
+    // Sort: incomplete first, then by priority, then by scheduled time
     const priorityOrder = { high: 0, medium: 1, low: 2 };
     const sortedTasks = [...filteredTasks].sort((a, b) => {
         if (a.completed !== b.completed) return a.completed ? 1 : -1;
+        // Sort by scheduled time if both have it
+        if (a.scheduledTime && b.scheduledTime) {
+            return a.scheduledTime.localeCompare(b.scheduledTime);
+        }
+        if (a.scheduledTime && !b.scheduledTime) return -1;
+        if (!a.scheduledTime && b.scheduledTime) return 1;
         return priorityOrder[a.priority as Priority] - priorityOrder[b.priority as Priority];
     });
 
@@ -109,6 +116,12 @@ export default function TaskList() {
     const isOverdue = (deadline: string) => {
         if (!deadline) return false;
         return new Date(deadline) < new Date(new Date().toDateString());
+    };
+
+    const formatTime = (time: string) => {
+        if (!time) return '';
+        const [hours, minutes] = time.split(':');
+        return `${hours}:${minutes}`;
     };
 
     const completedCount = tasks.filter(t => t.completed).length;
@@ -183,6 +196,11 @@ export default function TaskList() {
                                         {task.category && (
                                             <span className="task-item__category">{task.category}</span>
                                         )}
+                                        {task.scheduledTime && (
+                                            <span className="task-item__time">
+                                                🕐 {formatTime(task.scheduledTime)}
+                                            </span>
+                                        )}
                                         {task.deadline && (
                                             <span className={`task-item__deadline ${isOverdue(task.deadline) && !task.completed ? 'task-item__deadline--overdue' : ''}`}>
                                                 📅 {new Date(task.deadline).toLocaleDateString('ru-RU')}
@@ -211,6 +229,13 @@ export default function TaskList() {
                                                 <div className={`task-item__title ${sub.completed ? 'task-item__title--completed' : ''}`}>
                                                     {sub.title}
                                                 </div>
+                                                {sub.scheduledTime && (
+                                                    <div className="task-item__meta">
+                                                        <span className="task-item__time">
+                                                            🕐 {formatTime(sub.scheduledTime)}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="task-item__actions">
                                                 <button className="btn btn--ghost btn--small" onClick={() => deleteTask(sub.id)}>🗑</button>
@@ -275,6 +300,15 @@ export default function TaskList() {
                                     onChange={(e) => setNewTask({ ...newTask, deadline: e.target.value })}
                                 />
                             </div>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">⏰ Запланировать на время</label>
+                            <input
+                                type="time"
+                                className="input"
+                                value={newTask.scheduledTime}
+                                onChange={(e) => setNewTask({ ...newTask, scheduledTime: e.target.value })}
+                            />
                         </div>
                         <div className="form-group">
                             <label className="form-label">Категория</label>

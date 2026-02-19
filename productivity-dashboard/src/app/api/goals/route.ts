@@ -11,23 +11,20 @@ export async function GET() {
     }
 
     const userId = (session.user as { id: string }).id;
-    const rows = await findRows('Tasks', COLUMNS.Tasks.userId, userId);
+    const rows = await findRows('Goals', COLUMNS.Goals.userId, userId);
 
-    const tasks = rows.map((r) => ({
-        id: r.data[COLUMNS.Tasks.id],
-        userId: r.data[COLUMNS.Tasks.userId],
-        title: r.data[COLUMNS.Tasks.title],
-        description: r.data[COLUMNS.Tasks.description] || '',
-        priority: r.data[COLUMNS.Tasks.priority] || 'medium',
-        category: r.data[COLUMNS.Tasks.category] || '',
-        deadline: r.data[COLUMNS.Tasks.deadline] || '',
-        completed: r.data[COLUMNS.Tasks.completed] === 'true',
-        parentTaskId: r.data[COLUMNS.Tasks.parentTaskId] || null,
-        scheduledTime: r.data[COLUMNS.Tasks.scheduledTime] || '',
-        createdAt: r.data[COLUMNS.Tasks.createdAt],
+    const goals = rows.map((r) => ({
+        id: r.data[COLUMNS.Goals.id],
+        userId: r.data[COLUMNS.Goals.userId],
+        title: r.data[COLUMNS.Goals.title],
+        description: r.data[COLUMNS.Goals.description] || '',
+        category: r.data[COLUMNS.Goals.category] || 'short-term',
+        status: r.data[COLUMNS.Goals.status] || 'active',
+        targetDate: r.data[COLUMNS.Goals.targetDate] || '',
+        createdAt: r.data[COLUMNS.Goals.createdAt],
     }));
 
-    return NextResponse.json(tasks);
+    return NextResponse.json(goals);
 }
 
 export async function POST(request: NextRequest) {
@@ -41,17 +38,14 @@ export async function POST(request: NextRequest) {
     const id = uuidv4();
     const now = new Date().toISOString();
 
-    await appendRow('Tasks', [
+    await appendRow('Goals', [
         id,
         userId,
         body.title,
         body.description || '',
-        body.priority || 'medium',
-        body.category || '',
-        body.deadline || '',
-        'false',
-        body.parentTaskId || '',
-        body.scheduledTime || '',
+        body.category || 'short-term',
+        body.status || 'active',
+        body.targetDate || '',
         now,
     ]);
 
@@ -60,12 +54,9 @@ export async function POST(request: NextRequest) {
         userId,
         title: body.title,
         description: body.description || '',
-        priority: body.priority || 'medium',
-        category: body.category || '',
-        deadline: body.deadline || '',
-        completed: false,
-        parentTaskId: body.parentTaskId || null,
-        scheduledTime: body.scheduledTime || '',
+        category: body.category || 'short-term',
+        status: body.status || 'active',
+        targetDate: body.targetDate || '',
         createdAt: now,
     });
 }
@@ -77,22 +68,20 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const row = await findRows('Tasks', COLUMNS.Tasks.id, body.id);
+    const row = await findRows('Goals', COLUMNS.Goals.id, body.id);
 
     if (row.length === 0) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
     const updatedData = [...row[0].data];
-    if (body.title !== undefined) updatedData[COLUMNS.Tasks.title] = body.title;
-    if (body.description !== undefined) updatedData[COLUMNS.Tasks.description] = body.description;
-    if (body.priority !== undefined) updatedData[COLUMNS.Tasks.priority] = body.priority;
-    if (body.category !== undefined) updatedData[COLUMNS.Tasks.category] = body.category;
-    if (body.deadline !== undefined) updatedData[COLUMNS.Tasks.deadline] = body.deadline;
-    if (body.scheduledTime !== undefined) updatedData[COLUMNS.Tasks.scheduledTime] = body.scheduledTime;
-    if (body.completed !== undefined) updatedData[COLUMNS.Tasks.completed] = String(body.completed);
+    if (body.title !== undefined) updatedData[COLUMNS.Goals.title] = body.title;
+    if (body.description !== undefined) updatedData[COLUMNS.Goals.description] = body.description;
+    if (body.category !== undefined) updatedData[COLUMNS.Goals.category] = body.category;
+    if (body.status !== undefined) updatedData[COLUMNS.Goals.status] = body.status;
+    if (body.targetDate !== undefined) updatedData[COLUMNS.Goals.targetDate] = body.targetDate;
 
-    await updateRow('Tasks', row[0].rowIndex, updatedData);
+    await updateRow('Goals', row[0].rowIndex, updatedData);
     return NextResponse.json({ success: true });
 }
 
@@ -106,9 +95,9 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
-    const row = await findRows('Tasks', COLUMNS.Tasks.id, id);
+    const row = await findRows('Goals', COLUMNS.Goals.id, id);
     if (row.length > 0) {
-        await deleteRow('Tasks', row[0].rowIndex);
+        await deleteRow('Goals', row[0].rowIndex);
     }
 
     return NextResponse.json({ success: true });

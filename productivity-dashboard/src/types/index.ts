@@ -35,6 +35,7 @@ export interface Task {
     priority: Priority;
     category: string;
     deadline: string;
+    scheduledTime: string;
     completed: boolean;
     parentTaskId: string | null;
     createdAt: string;
@@ -61,4 +62,18 @@ export interface DailyStats {
     habitsTotal: number;
     tasksCompleted: number;
     tasksTotal: number;
+}
+
+export type GoalCategory = 'dream' | 'short-term' | 'long-term';
+export type GoalStatus = 'active' | 'completed' | 'paused';
+
+export interface Goal {
+    id: string;
+    userId: string;
+    title: string;
+    description: string;
+    category: GoalCategory;
+    status: GoalStatus;
+    targetDate: string;
+    createdAt: string;
 }
