@@ -15,6 +15,8 @@ export default function TaskList() {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | Priority>('all');
     const [showAddModal, setShowAddModal] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [actionError, setActionError] = useState('');
     const [newTask, setNewTask] = useState({
         title: '',
         description: '',
@@ -31,12 +33,16 @@ export default function TaskList() {
                 fetch('/api/tasks'),
                 fetch('/api/categories'),
             ]);
+            if (!tasksRes.ok || !catsRes.ok) {
+                throw new Error('Не удалось загрузить задачи или категории');
+            }
             const tasksData = await tasksRes.json();
             const catsData = await catsRes.json();
             setTasks(tasksData);
             setCategories(catsData);
         } catch (error) {
             console.error('Error fetching tasks:', error);
+            setActionError('Не удалось загрузить задачи. Обновите страницу.');
         } finally {
             setLoading(false);
         }
@@ -49,18 +55,27 @@ export default function TaskList() {
     const addTask = async () => {
         if (!newTask.title.trim()) return;
 
+        setSubmitting(true);
+        setActionError('');
         try {
             const res = await fetch('/api/tasks', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newTask),
             });
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Не удалось добавить задачу');
+            }
             const task = await res.json();
-            setTasks([...tasks, task]);
+            setTasks((prev) => [...prev, task]);
             setNewTask({ title: '', description: '', priority: 'medium', category: '', deadline: '', scheduledTime: '', parentTaskId: '' });
             setShowAddModal(false);
         } catch (error) {
             console.error('Error adding task:', error);
+            setActionError(error instanceof Error ? error.message : 'Ошибка при добавлении задачи');
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -72,13 +87,17 @@ export default function TaskList() {
         setTasks(tasks.map(t => t.id === taskId ? { ...t, completed: newCompleted } : t));
 
         try {
-            await fetch('/api/tasks', {
+            const res = await fetch('/api/tasks', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: taskId, completed: newCompleted }),
             });
+            if (!res.ok) {
+                throw new Error('Не удалось обновить задачу');
+            }
         } catch (error) {
             console.error('Error toggling task:', error);
+            setActionError('Не удалось обновить задачу');
             fetchData();
         }
     };
@@ -86,9 +105,13 @@ export default function TaskList() {
     const deleteTask = async (taskId: string) => {
         setTasks(tasks.filter(t => t.id !== taskId));
         try {
-            await fetch(`/api/tasks?id=${taskId}`, { method: 'DELETE' });
+            const res = await fetch(`/api/tasks?id=${taskId}`, { method: 'DELETE' });
+            if (!res.ok) {
+                throw new Error('Не удалось удалить задачу');
+            }
         } catch (error) {
             console.error('Error deleting task:', error);
+            setActionError('Не удалось удалить задачу');
             fetchData();
         }
     };
@@ -166,6 +189,11 @@ export default function TaskList() {
                     </button>
                 </div>
             </div>
+            {actionError && (
+                <p style={{ color: 'var(--priority-high)', marginBottom: 'var(--space-sm)', fontSize: '0.8rem' }}>
+                    {actionError}
+                </p>
+            )}
 
             {sortedTasks.length === 0 ? (
                 <div className="empty-state">
@@ -337,9 +365,9 @@ export default function TaskList() {
                             </select>
                         </div>
                         <div className="modal__actions">
-                            <button className="btn btn--secondary" onClick={() => setShowAddModal(false)}>Отмена</button>
-                            <button className="btn btn--primary" onClick={addTask} disabled={!newTask.title.trim()}>
-                                Добавить
+                            <button className="btn btn--secondary" onClick={() => setShowAddModal(false)} disabled={submitting}>Отмена</button>
+                            <button className="btn btn--primary" onClick={addTask} disabled={!newTask.title.trim() || submitting}>
+                                {submitting ? 'Добавление...' : 'Добавить'}
                             </button>
                         </div>
                     </div>

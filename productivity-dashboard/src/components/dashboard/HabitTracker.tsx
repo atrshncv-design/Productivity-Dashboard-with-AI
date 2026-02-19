@@ -11,6 +11,7 @@ export default function HabitTracker() {
     const [newHabitName, setNewHabitName] = useState('');
     const [newHabitIcon, setNewHabitIcon] = useState('⭐');
     const [selectedDate, setSelectedDate] = useState(new Date());
+    const [actionError, setActionError] = useState('');
 
     const formatDate = (d: Date) => d.toISOString().split('T')[0];
     const today = formatDate(new Date());
@@ -23,12 +24,16 @@ export default function HabitTracker() {
                 fetch('/api/habits'),
                 fetch(`/api/habit-logs?date=${currentDateStr}`),
             ]);
+            if (!habitsRes.ok || !logsRes.ok) {
+                throw new Error('Не удалось загрузить привычки');
+            }
             const habitsData = await habitsRes.json();
             const logsData = await logsRes.json();
             setHabits(habitsData.filter((h: Habit) => h.isActive));
             setLogs(logsData);
         } catch (error) {
             console.error('Error fetching habits:', error);
+            setActionError('Не удалось загрузить привычки');
         } finally {
             setLoading(false);
         }
@@ -59,13 +64,17 @@ export default function HabitTracker() {
         }
 
         try {
-            await fetch('/api/habit-logs', {
+            const res = await fetch('/api/habit-logs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ habitId, date: currentDateStr, completed: newCompleted }),
             });
+            if (!res.ok) {
+                throw new Error('Не удалось обновить привычку');
+            }
         } catch (error) {
             console.error('Error toggling habit:', error);
+            setActionError('Не удалось обновить привычку');
             fetchData(); // Revert on error
         }
     };
@@ -79,23 +88,33 @@ export default function HabitTracker() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: newHabitName, icon: newHabitIcon }),
             });
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Не удалось добавить привычку');
+            }
             const newHabit = await res.json();
-            setHabits([...habits, { ...newHabit, isActive: true }]);
+            setHabits((prev) => [...prev, { ...newHabit, isActive: true }]);
             setNewHabitName('');
             setNewHabitIcon('⭐');
             setShowAddModal(false);
+            setActionError('');
         } catch (error) {
             console.error('Error adding habit:', error);
+            setActionError(error instanceof Error ? error.message : 'Ошибка при добавлении привычки');
         }
     };
 
     const removeHabit = async (habitId: string) => {
         if (!confirm('Удалить эту привычку?')) return;
         try {
-            await fetch(`/api/habits?id=${habitId}`, { method: 'DELETE' });
-            setHabits(habits.filter(h => h.id !== habitId));
+            const res = await fetch(`/api/habits?id=${habitId}`, { method: 'DELETE' });
+            if (!res.ok) {
+                throw new Error('Не удалось удалить привычку');
+            }
+            setHabits((prev) => prev.filter(h => h.id !== habitId));
         } catch (error) {
             console.error('Error removing habit:', error);
+            setActionError('Не удалось удалить привычку');
         }
     };
 
@@ -142,6 +161,11 @@ export default function HabitTracker() {
                     + Добавить
                 </button>
             </div>
+            {actionError && (
+                <p style={{ color: 'var(--priority-high)', marginBottom: 'var(--space-sm)', fontSize: '0.8rem' }}>
+                    {actionError}
+                </p>
+            )}
 
             {/* Date navigation */}
             <div className="habit-tracker__date-nav">

@@ -20,6 +20,7 @@ export default function GoalsList() {
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [filterCategory, setFilterCategory] = useState<'all' | GoalCategory>('all');
+    const [actionError, setActionError] = useState('');
     const [newGoal, setNewGoal] = useState({
         title: '',
         description: '',
@@ -30,10 +31,14 @@ export default function GoalsList() {
     const fetchGoals = useCallback(async () => {
         try {
             const res = await fetch('/api/goals');
+            if (!res.ok) {
+                throw new Error('Не удалось загрузить цели');
+            }
             const data = await res.json();
             setGoals(data);
         } catch (error) {
             console.error('Error fetching goals:', error);
+            setActionError('Не удалось загрузить цели');
         } finally {
             setLoading(false);
         }
@@ -52,12 +57,18 @@ export default function GoalsList() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newGoal),
             });
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Не удалось добавить цель');
+            }
             const goal = await res.json();
-            setGoals([...goals, goal]);
+            setGoals((prev) => [...prev, goal]);
             setNewGoal({ title: '', description: '', category: 'short-term', targetDate: '' });
             setShowAddModal(false);
+            setActionError('');
         } catch (error) {
             console.error('Error adding goal:', error);
+            setActionError(error instanceof Error ? error.message : 'Ошибка при добавлении цели');
         }
     };
 
@@ -65,13 +76,17 @@ export default function GoalsList() {
         setGoals(goals.map(g => g.id === goalId ? { ...g, status } : g));
 
         try {
-            await fetch('/api/goals', {
+            const res = await fetch('/api/goals', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: goalId, status }),
             });
+            if (!res.ok) {
+                throw new Error('Не удалось обновить цель');
+            }
         } catch (error) {
             console.error('Error updating goal:', error);
+            setActionError('Не удалось обновить цель');
             fetchGoals();
         }
     };
@@ -80,9 +95,13 @@ export default function GoalsList() {
         if (!confirm('Удалить эту цель?')) return;
         setGoals(goals.filter(g => g.id !== goalId));
         try {
-            await fetch(`/api/goals?id=${goalId}`, { method: 'DELETE' });
+            const res = await fetch(`/api/goals?id=${goalId}`, { method: 'DELETE' });
+            if (!res.ok) {
+                throw new Error('Не удалось удалить цель');
+            }
         } catch (error) {
             console.error('Error deleting goal:', error);
+            setActionError('Не удалось удалить цель');
             fetchGoals();
         }
     };
@@ -127,6 +146,11 @@ export default function GoalsList() {
                     + Цель
                 </button>
             </div>
+            {actionError && (
+                <p style={{ color: 'var(--priority-high)', marginBottom: 'var(--space-sm)', fontSize: '0.8rem' }}>
+                    {actionError}
+                </p>
+            )}
 
             {/* Category filter */}
             <div className="goals__filters">
