@@ -120,11 +120,21 @@ async function sendTelegramNotification(
     body: string,
     tag: string
 ): Promise<boolean> {
-    if (!chatId.trim()) return false;
+    const result = await sendTelegramNotificationDetailed(chatId, title, body, tag);
+    return result.ok;
+}
+
+async function sendTelegramNotificationDetailed(
+    chatId: string,
+    title: string,
+    body: string,
+    tag: string
+): Promise<{ ok: boolean; error?: string }> {
+    if (!chatId.trim()) return { ok: false, error: 'chat_id is empty' };
 
     const sentKey = `tg:${tag}`;
     const sent = getSentToday();
-    if (sent.has(sentKey)) return true;
+    if (sent.has(sentKey)) return { ok: true };
 
     try {
         const res = await fetch('/api/notifications/telegram', {
@@ -134,15 +144,17 @@ async function sendTelegramNotification(
         });
 
         if (!res.ok) {
-            console.error('Telegram notification failed:', await res.text());
-            return false;
+            const data = await res.json().catch(() => ({}));
+            const detail = String(data?.details || data?.error || 'Telegram request failed');
+            console.error('Telegram notification failed:', detail);
+            return { ok: false, error: detail };
         }
 
         markSent(sentKey);
-        return true;
+        return { ok: true };
     } catch (error) {
         console.error('Error sending Telegram notification:', error);
-        return false;
+        return { ok: false, error: error instanceof Error ? error.message : 'Unknown Telegram error' };
     }
 }
 
@@ -385,9 +397,10 @@ export function useNotifications() {
             return true;
         },
         sendTestTelegram: async (title: string, body: string) => {
-            if (!settings.telegramEnabled || !settings.telegramChatId.trim()) return false;
-            await sendTelegramNotification(settings.telegramChatId, title, body, `test-tg-${Date.now()}`);
-            return true;
+            if (!settings.telegramEnabled || !settings.telegramChatId.trim()) {
+                return { ok: false, error: 'Telegram не включен или chat_id пустой' };
+            }
+            return sendTelegramNotificationDetailed(settings.telegramChatId, title, body, `test-tg-${Date.now()}`);
         },
     };
 }

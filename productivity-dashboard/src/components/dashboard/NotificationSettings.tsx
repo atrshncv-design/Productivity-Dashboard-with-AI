@@ -38,12 +38,21 @@ export default function NotificationSettings() {
     };
 
     const handleTestTelegram = async () => {
-        const ok = await sendTestTelegram(
+        const result = await sendTestTelegram(
             '🧪 Тест Telegram',
             'Если вы видите это сообщение, Telegram-уведомления работают.'
         );
-        if (!ok) {
-            alert('Проверьте, что Telegram включен и указан chat_id.');
+        if (!result.ok) {
+            const detail = result.error || 'Проверьте, что Telegram включен и указан chat_id.';
+            if (detail.includes('bot was blocked by the user')) {
+                alert('Telegram: бот заблокирован. Откройте @tncxxxtestbot, нажмите Start и разблокируйте бота, затем повторите тест.');
+                return;
+            }
+            if (detail.includes('chat not found')) {
+                alert('Telegram: chat_id не найден. Проверьте chat_id и убедитесь, что вы начали диалог с ботом.');
+                return;
+            }
+            alert(`Ошибка Telegram: ${detail}`);
         }
     };
 
