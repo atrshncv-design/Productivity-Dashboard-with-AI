@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 
 export default function NotificationSettings() {
@@ -15,13 +15,6 @@ export default function NotificationSettings() {
     } = useNotifications();
 
     const [isExpanded, setIsExpanded] = useState(false);
-    const [isTelegramConnecting, setIsTelegramConnecting] = useState(false);
-
-    useEffect(() => {
-        if (settings.telegramEnabled && !settings.telegramChatId.trim()) {
-            setIsExpanded(true);
-        }
-    }, [settings.telegramEnabled, settings.telegramChatId]);
 
     const handleEnable = async () => {
         if (permission === 'denied') {
@@ -68,31 +61,14 @@ export default function NotificationSettings() {
         }
     };
 
-    const handleConnectTelegram = async () => {
+    const handleConnectTelegram = () => {
         updateSettings({ enabled: true, telegramEnabled: true });
-
-        const popup = typeof window !== 'undefined' ? window.open('', '_blank') : null;
-        setIsTelegramConnecting(true);
-
-        try {
-            const res = await fetch('/api/notifications/telegram/connect', { method: 'POST' });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data?.deepLink) {
-                throw new Error(data?.error || 'Не удалось создать ссылку для Telegram');
+        if (typeof window !== 'undefined') {
+            const connectUrl = '/telegram/connect';
+            const popup = window.open(connectUrl, '_blank', 'noopener,noreferrer');
+            if (!popup) {
+                window.location.href = connectUrl;
             }
-
-            const deepLink = String(data.deepLink);
-            if (popup) {
-                popup.location.href = deepLink;
-            } else {
-                window.open(deepLink, '_blank', 'noopener,noreferrer');
-            }
-            alert('Telegram открыт. Нажмите Start у бота, затем вернитесь и нажмите «Проверить подключение».');
-        } catch (error) {
-            if (popup) popup.close();
-            alert(`Ошибка подключения Telegram: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
-        } finally {
-            setIsTelegramConnecting(false);
         }
     };
 
@@ -185,13 +161,10 @@ export default function NotificationSettings() {
                                 <button
                                     className="btn btn--secondary btn--small"
                                     onClick={handleConnectTelegram}
-                                    disabled={isTelegramConnecting}
                                 >
-                                    {isTelegramConnecting
-                                        ? 'Открываем Telegram...'
-                                        : settings.telegramChatId.trim()
-                                            ? '🔄 Переподключить Telegram'
-                                            : '🤖 Подключить Telegram'}
+                                    {settings.telegramChatId.trim()
+                                        ? '🔄 Переподключить Telegram'
+                                        : '🤖 Подключить Telegram'}
                                 </button>
                                 <button
                                     className="btn btn--ghost btn--small"

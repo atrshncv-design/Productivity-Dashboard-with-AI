@@ -79,11 +79,15 @@ export async function POST() {
         }
 
         const botUsername = await resolveBotUsername();
+        const botUsernameEncoded = encodeURIComponent(botUsername);
+        const tokenEncoded = encodeURIComponent(token);
         const deepLink = `https://t.me/${botUsername}?start=${encodeURIComponent(token)}`;
+        const appDeepLink = `tg://resolve?domain=${botUsernameEncoded}&start=${tokenEncoded}`;
 
         return NextResponse.json({
             success: true,
             deepLink,
+            appDeepLink,
             botUsername: `@${botUsername}`,
             expiresAt,
         });
