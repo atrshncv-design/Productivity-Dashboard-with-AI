@@ -43,7 +43,7 @@ export default function LoginPage() {
                 <div className="auth-card__logo">
                     <div className="auth-card__logo-icon">⚡</div>
                     <h1 className="auth-card__title">Вход</h1>
-                    <p className="auth-card__subtitle">Добро пожаловать обратно</p>
+                    <p className="auth-card__subtitle">С возвращением в PRODUCTIVITY AI</p>
                 </div>
 
                 {error && <div className="auth-card__error">{error}</div>}

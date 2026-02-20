@@ -35,7 +35,7 @@ export default function Header() {
                 <div className="dashboard__logo">⚡</div>
                 <div className="dashboard__greeting">
                     <h1>{getGreeting()}, {userName}!</h1>
-                    <p>Ваш персональный дашборд продуктивности</p>
+                    <p>Ваш персональный дашборд PRODUCTIVITY AI</p>
                 </div>
             </div>
 

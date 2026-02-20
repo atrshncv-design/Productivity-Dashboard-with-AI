@@ -3,7 +3,7 @@ import './globals.css';
 import Providers from './providers';
 
 export const metadata: Metadata = {
-  title: 'Трекер Продуктивности',
+  title: 'PRODUCTIVITY AI',
   description: 'Персональный дашборд для отслеживания привычек и продуктивности',
   manifest: '/manifest.json',
   icons: {

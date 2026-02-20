@@ -187,6 +187,16 @@ export const COLUMNS = {
         channel: 3,
         sentAt: 4,
     },
+    TelegramLinkTokens: {
+        id: 0,
+        userId: 1,
+        token: 2,
+        status: 3,
+        chatId: 4,
+        createdAt: 5,
+        expiresAt: 6,
+        usedAt: 7,
+    },
 };
 
 const SHEET_HEADERS: Record<string, string[]> = {
@@ -198,6 +208,7 @@ const SHEET_HEADERS: Record<string, string[]> = {
     Goals: ['id', 'userId', 'title', 'description', 'category', 'status', 'targetDate', 'createdAt'],
     NotificationSettings: ['id', 'userId', 'enabled', 'habitReminder', 'habitReminderTime', 'taskReminder', 'taskReminderMinutes', 'goalReminder', 'goalReminderTime', 'dailySummary', 'dailySummaryTime', 'telegramEnabled', 'telegramChatId', 'timezone', 'updatedAt'],
     NotificationEvents: ['id', 'eventKey', 'userId', 'channel', 'sentAt'],
+    TelegramLinkTokens: ['id', 'userId', 'token', 'status', 'chatId', 'createdAt', 'expiresAt', 'usedAt'],
 };
 
 async function ensureKnownSheet(sheetName: string): Promise<void> {

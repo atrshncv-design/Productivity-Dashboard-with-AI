@@ -1,6 +1,6 @@
 {
-    "name": "Трекер Продуктивности",
-    "short_name": "Продуктивность",
+    "name": "PRODUCTIVITY AI",
+    "short_name": "PRODUCTIVITY AI",
     "description": "Персональный дашборд для отслеживания привычек и продуктивности",
     "start_url": "/dashboard",
     "display": "standalone",

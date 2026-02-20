@@ -181,28 +181,41 @@ export function useNotifications() {
         }
     }, []);
 
+    const fetchServerSettings = useCallback(async (): Promise<NotificationSettings | null> => {
+        try {
+            const res = await fetch('/api/notification-settings');
+            if (!res.ok) return null;
+            const serverSettings = await res.json();
+            return { ...getSettings(), ...serverSettings } as NotificationSettings;
+        } catch (error) {
+            console.error('Failed to load notification settings from server:', error);
+            return null;
+        }
+    }, []);
+
+    const reloadSettings = useCallback(async (): Promise<NotificationSettings | null> => {
+        const merged = await fetchServerSettings();
+        if (!merged) return null;
+        setSettingsState(merged);
+        saveSettings(merged);
+        return merged;
+    }, [fetchServerSettings]);
+
     useEffect(() => {
         let cancelled = false;
 
         const loadServerSettings = async () => {
-            try {
-                const res = await fetch('/api/notification-settings');
-                if (!res.ok) return;
-                const serverSettings = await res.json();
-                if (cancelled) return;
-                const merged = { ...getSettings(), ...serverSettings } as NotificationSettings;
-                setSettingsState(merged);
-                saveSettings(merged);
-            } catch (error) {
-                console.error('Failed to load notification settings from server:', error);
-            }
+            const merged = await fetchServerSettings();
+            if (!merged || cancelled) return;
+            setSettingsState(merged);
+            saveSettings(merged);
         };
 
-        loadServerSettings();
+        void loadServerSettings();
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [fetchServerSettings]);
 
     // Register service worker
     useEffect(() => {
@@ -402,5 +415,6 @@ export function useNotifications() {
             }
             return sendTelegramNotificationDetailed(settings.telegramChatId, title, body, `test-tg-${Date.now()}`);
         },
+        reloadSettings,
     };
 }

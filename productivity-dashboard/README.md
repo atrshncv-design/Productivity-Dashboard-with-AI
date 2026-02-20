@@ -28,18 +28,28 @@ Required env for Telegram:
 
 ```bash
 TELEGRAM_BOT_TOKEN=your-bot-token
+TELEGRAM_BOT_USERNAME=your_bot_username_without_@
+TELEGRAM_WEBHOOK_SECRET=your-webhook-secret
 CRON_SECRET=your-long-random-cron-secret
 ```
 
 How to enable Telegram reminders:
 1. Open dashboard -> notifications settings
 2. Enable `Telegram channel`
-3. Paste your `chat_id`
-4. Click `Test Telegram`
+3. Click `Подключить Telegram`
+4. In Telegram, open the bot and press `Start`
+5. Return to app and click `Проверить подключение`, then `Тест Telegram`
 
-How to get `chat_id`:
-- Message `@userinfobot` or `@RawDataBot` in Telegram
-- Start a chat with your bot at least once
+Webhook setup for `/start` binding:
+
+```bash
+curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url":"https://your-app-domain/api/telegram/webhook",
+    "secret_token":"<TELEGRAM_WEBHOOK_SECRET>"
+  }'
+```
 
 ## Server-Side Reminder Cron
 
