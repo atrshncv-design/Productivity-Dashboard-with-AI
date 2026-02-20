@@ -14,12 +14,24 @@ jobs:
           APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          if [ -z "$APP_BASE_URL" ] || [ -z "$CRON_SECRET" ]; then
-            echo "APP_BASE_URL and CRON_SECRET secrets must be set"
+          BASE_URL="${APP_BASE_URL:-https://alex-productivity-dash.netlify.app}"
+
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET secret must be set in GitHub repository settings"
             exit 1
           fi
 
-          curl --fail --show-error --silent \
-            -X POST "${APP_BASE_URL}/api/cron/notifications" \
+          RESPONSE_FILE=$(mktemp)
+          STATUS_CODE=$(curl --silent --show-error \
+            -o "$RESPONSE_FILE" \
+            -w "%{http_code}" \
+            -X POST "${BASE_URL}/api/cron/notifications" \
             -H "Authorization: Bearer ${CRON_SECRET}" \
-            -H "Content-Type: application/json"
+            -H "Content-Type: application/json")
+
+          echo "HTTP status: ${STATUS_CODE}"
+          echo "Response: $(cat "$RESPONSE_FILE")"
+
+          if [ "$STATUS_CODE" -lt 200 ] || [ "$STATUS_CODE" -ge 300 ]; then
+            exit 1
+          fi
